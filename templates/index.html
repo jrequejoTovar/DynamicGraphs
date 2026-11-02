@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Network Analytics Studio · IE Lab</title>
+  <!-- Workspace styling and responsive overlays. -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<!-- Compact command bar: dataset and AI actions remain accessible at all times. -->
+<header class="topbar topbar-workspace">
+    <div class="brand">
+      <!-- Logo Badge con enlace a LinkedIn -->
+      <a
+          href="https://www.linkedin.com/in/jaimerequejotovar/"
+          class="brand-mark brand-mark-ie"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Visit my LinkedIn profile"
+      >
+          <img
+              src="{{ url_for('static', filename='images/JRT_Badge.png') }}"
+              alt="Jaime Requejo Tovar"
+          >
+      </a>
+
+      <!-- Título de la aplicación -->
+      <a href="/" class="brand-title" aria-label="Network Analytics Studio home">
+          <strong>Network Analytics</strong>
+          <span class="brand-sub">Studio</span>
+      </a>
+  </div>
+
+  <div class="topbar-dataset field">
+    <label for="dataset">Dataset</label>
+    <select id="dataset" aria-label="Choose a network dataset"></select>
+  </div>
+
+  <!-- Keep #aiAnalyst and all existing AI IDs for ai_insights.js / controls.js. -->
+  <section id="aiAnalyst" class="ai-toolbar" aria-label="AI Network Analyst">
+    <div class="ai-toolbar-heading">
+      <span class="eyebrow">LOCAL INTELLIGENCE</span>
+      <strong>AI Network Analyst</strong>
+      <span class="ai-local-label">Ollama</span>
+    </div>
+    <div class="ai-toolbar-controls">
+      <label class="visually-hidden" for="aiModel">AI model</label>
+      <select id="aiModel" aria-label="AI model">
+        <option value="qwen3:8b">qwen3:8b</option>
+      </select>
+      <label class="visually-hidden" for="aiMode">Interpretation mode</label>
+      <select id="aiMode" aria-label="Interpretation mode">
+        <option value="auto">Automatically after Apply</option>
+        <option value="manual">On request</option>
+      </select>
+      <button type="button" id="aiAnalyze" class="ai-analyze-button">Analyse network</button>
+      <button type="button" id="aiOptimize" class="ai-optimise-button">✦ Optimise &amp; focus</button>
+      <button type="button" id="aiRestore" class="ai-restore-button" hidden>↶ Restore view</button>
+    </div>
+    <p id="aiStatus" class="ai-status" role="status" aria-live="polite">Connecting to Ollama…</p>
+  </section>
+  <span class="top-tag">IE LAB <span class="green-dot"></span></span>
+</header>
+
+<main class="workspace workspace-redesign">
+  <div class="workspace-stage" id="workspaceStage">
+
+    <!-- Left overlay drawer: preserve all existing controls and form IDs. -->
+    <aside class="sidebar workspace-drawer controls-drawer" id="controlsDrawer"
+           aria-label="Network controls" aria-hidden="false">
+      <div class="drawer-header">
+        <div>
+          <span class="eyebrow">GRAPH EXPLORER</span>
+          <h2>Network controls</h2>
+        </div>
+        <button type="button" class="drawer-close" id="closeControls" aria-label="Close controls"
+                >×</button>
+      </div>
+
+      <div class="control-group control-appearance">
+        <div class="section-head"><span class="section-icon">◉</span> Node appearance</div>
+        <div class="field">
+          <label for="metric">Size metric</label>
+          <select id="metric">
+            <option value="degree">Degree · Total connections</option>
+            <option value="in_degree" selected>In-Degree · Attention received</option>
+            <option value="out_degree">Out-Degree · Interactions initiated</option>
+            <option value="weighted_degree">Weighted Degree · Interaction volume</option>
+            <option value="weighted_in_degree">Weighted In-Degree</option>
+            <option value="weighted_out_degree">Weighted Out-Degree</option>
+            <option value="betweenness">Betweenness · Intermediary position</option>
+            <option value="pagerank">PageRank</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="metricScope">Metric scope
+            <span class="help" title="Original: calculate on the full graph. Filtered: calculate after applying filters.">ⓘ</span>
+          </label>
+          <select id="metricScope">
+            <option value="filtered">Current filtered network</option>
+            <option value="original">Original network</option>
+          </select>
+        </div>
+        <div class="size-controls">
+          <div>
+            <div class="range-label"><label for="minSize">Min node size</label><output id="minSizeValue">3</output></div>
+            <input id="minSize" type="range" min="2" max="20" value="3">
+          </div>
+          <div>
+            <div class="range-label"><label for="maxSize">Max node size</label><output id="maxSizeValue">42</output></div>
+            <input id="maxSize" type="range" min="12" max="95" value="42">
+          </div>
+        </div>
+        <div class="field">
+          <label for="colorBy">Node color</label>
+          <select id="colorBy">
+            <option value="community">Community (Louvain)</option>
+            <option value="category">Account / node category</option>
+            <option value="uniform">Uniform</option>
+          </select>
+        </div>
+        <label class="check"><input type="checkbox" id="showLabels" checked> Show labels for important nodes</label>
+      </div>
+
+      <!-- Layout and Filters are siblings to support a 2-column drawer design. -->
+      <div class="control-columns">
+        <div class="control-group layout-controls">
+          <div class="section-head"><span class="section-icon">⧉</span> Layout</div>
+          <div class="field">
+            <label for="layout">Algorithm</label>
+            <select id="layout">
+              <option value="forceatlas2">ForceAtlas2 (NetworkX)</option>
+              <option value="circular">Circular</option>
+              <option value="grid">Grid</option>
+              <option value="random">Random</option>
+            </select>
+          </div>
+          <div class="range-label"><label for="scaling">Scaling / repulsion</label><output id="scalingValue">2</output></div>
+          <input type="range" id="scaling" min="0.5" max="12" step="0.5" value="2">
+          <div class="range-label"><label for="gravity">Gravity</label><output id="gravityValue">1</output></div>
+          <input type="range" id="gravity" min="0" max="8" step="0.5" value="1">
+          <div class="range-label"><label for="iterations">Iterations</label><output id="iterationsValue">60</output></div>
+          <input type="range" id="iterations" min="10" max="150" step="10" value="60">
+          <label class="check"><input type="checkbox" id="preventOverlap" checked> Prevent overlap
+            <span class="help" title="Applies separation using node sizes. It is not pixel-perfect.">ⓘ</span>
+          </label>
+          <label class="check"><input type="checkbox" id="useWeights" checked> Use edge weights</label>
+          <label class="check"><input type="checkbox" id="linlog"> LinLog attraction</label>
+          <label class="check"><input type="checkbox" id="strongGravity"> Strong gravity</label>
+          <button type="button" class="primary" id="applyLayout">▶ Apply layout</button>
+          <p class="micro">ForceAtlas2 runs on up to 850 visible nodes. Filter large graphs first.</p>
+        </div>
+
+        <div class="control-group filter-controls">
+          <div class="section-head"><span class="section-icon">▽</span> Filters</div>
+          <div class="range-label"><label for="minDegree">Minimum Degree</label><output id="minDegreeValue">0</output></div>
+          <input type="range" id="minDegree" min="0" max="20" value="0">
+          <div class="field">
+            <label for="minWeight">Minimum edge weight</label>
+            <input id="minWeight" type="number" min="0" step="1" value="0">
+          </div>
+          <label class="check"><input type="checkbox" id="giant"> Giant weakly connected component</label>
+          <label class="check"><input type="checkbox" id="recalcCommunities"> Recalculate communities on selection</label>
+          <div class="field">
+            <label for="communitySelect">Original communities
+              <span class="help" title="Use Ctrl / Cmd to select more than one community.">ⓘ</span>
+            </label>
+            <select id="communitySelect" multiple size="5" aria-label="Select communities"></select>
+            <div class="community-actions">
+              <button type="button" class="text-btn" id="topCommunities">Select 4 largest</button>
+              <button type="button" class="text-btn" id="clearCommunities">Clear selection</button>
+            </div>
+          </div>
+          <button type="button" class="primary" id="applyFilters">Apply filters &amp; recalculate</button>
+          <button type="button" class="secondary" id="resetFilters">Reset all filters</button>
+        </div>
+      </div>
+      <label class="check drawer-pin"><input type="checkbox" id="keepControlsOpen">
+        Keep controls open after applying
+      </label>
+    </aside>
+
+    <!-- Full-size graph stage. Controls and Overview overlay it, rather than taking columns. -->
+    <section class="viz-panel" aria-label="Network visualization">
+      <div class="canvas-bar">
+        <div class="canvas-left-actions">
+          <button type="button" class="panel-toggle" id="openControls" aria-controls="controlsDrawer"
+                  aria-expanded="true" >☰ Controls</button>
+          <div class="canvas-title">
+            <span class="eyebrow">LIVE NETWORK VIEW</span>
+            <h1 id="graphTitle">Bluesky V5 · User Interactions</h1>
+          </div>
+        </div>
+        <div class="canvas-right-actions">
+          <button type="button" class="panel-toggle" id="openOverview" aria-controls="overviewDrawer"
+                  aria-expanded="true" >Overview ☷</button>
+          <div class="canvas-actions">
+            <button type="button" id="zoomIn" title="Zoom in">＋</button>
+            <button type="button" id="zoomOut" title="Zoom out">－</button>
+            <button type="button" id="fitGraph" title="Fit graph">⤢</button>
+            <button type="button" id="exportImage" title="Export image as PNG">⇩ PNG</button>
+          </div>
+        </div>
+      </div>
+      <div class="canvas-wrap" id="canvasWrap">
+        <canvas id="networkCanvas" tabindex="0" aria-label="Interactive network visualization"></canvas>
+        <div class="loading" id="loading" hidden>
+          <div class="spinner"></div><span id="loadingMessage">Analysing network…</span>
+        </div>
+      </div>
+      <div class="viz-foot">
+        <span id="aiFocusLegend" hidden>◎ Gold outline = AI focus</span>
+        <span><span class="legend-dot"></span> Node size = <strong id="metricCaption">In-Degree</strong></span>
+        <span>Color = <strong id="colorCaption">Community</strong></span>
+        <span>Scroll to zoom · Drag to pan · Click a node</span>
+        <button type="button" id="showMetricHelp" class="context-help" >ⓘ How to read</button>
+      </div>
+    </section>
+
+    <!-- Right overlay drawer: network / rankings / selected node. -->
+    <aside class="insights workspace-drawer overview-drawer" id="overviewDrawer"
+           aria-label="Network overview" aria-hidden="false">
+      <div class="drawer-header">
+        <div><span class="eyebrow">NETWORK OVERVIEW</span><h2>Network insights</h2></div>
+        <button type="button" class="drawer-close" id="closeOverview" aria-label="Close overview"
+                >×</button>
+      </div>
+      <div class="overview-tabs" role="tablist" aria-label="Network overview sections">
+        <button type="button" role="tab" id="overviewNetworkTab" aria-selected="true">Network</button>
+        <button type="button" role="tab" id="overviewRankingTab" aria-selected="false">Rankings</button>
+        <button type="button" role="tab" id="overviewNodeTab" aria-selected="false">Selected node</button>
+      </div>
+      <section class="overview-section" id="overviewNetworkPanel" aria-label="Network metrics">
+        <div class="stat-grid">
+          <div class="stat"><span>Nodes</span><strong id="nodeCount">—</strong></div>
+          <div class="stat"><span>Edges</span><strong id="edgeCount">—</strong></div>
+          <div class="stat"><span>Communities</span><strong id="communityCount">—</strong></div>
+          <div class="stat"><span>Weak components</span><strong id="weakCount">—</strong></div>
+        </div>
+      </section>
+      <section class="side-block overview-section" id="overviewRankingPanel" aria-label="Centrality rankings">
+        <div class="block-heading"><h3>Top accounts</h3><span id="rankMetric">In-Degree</span></div>
+        <div id="ranking" class="ranking"></div>
+      </section>
+      <section class="side-block overview-section" id="overviewNodePanel" aria-label="Selected node details">
+        <div class="block-heading"><h3>Selected node</h3></div>
+        <div id="selection" class="selection">
+          <p class="muted">Select a node to see its original attributes and connections.</p>
+        </div>
+        <button type="button" id="aiAnalyseNode" class="primary" disabled
+                title="Select a node in the graph or rankings to analyse its verified relationships">Analyse this node</button>
+      </section>
+      <!-- Legacy metric text remains a reliable source; it will be shown in a popover. -->
+      <details class="interpretation metric-help-details" id="metricHelpDetails">
+        <summary>ⓘ How to read this metric</summary>
+        <p id="interpretation">In-Degree measures the number of distinct accounts replying to or mentioning a user in this observed network. High attention does not prove real-world influence.</p>
+        <p class="micro">Communities are structural, not necessarily ideological. Values calculated on filtered graphs describe only the visible subnetwork.</p>
+      </details>
+    </aside>
+
+    <!-- Technical log is accessible on demand and does not occupy canvas height. -->
+    <details class="activity activity-popover" id="activityPanel">
+      <summary>Activity log</summary>
+      <div class="activity-title"><strong>Recent actions</strong><button type="button" id="clearLog" class="text-btn">Clear</button></div>
+      <div id="logList" class="log-list"><div class="log-item">Studio ready · Choose a network</div></div>
+    </details>
+
+  </div><!-- /workspace-stage -->
+
+  <!-- Permanent five-stage AI Investigation Workflow. -->
+  <section class="investigation-workflow" id="investigationWorkflow" aria-label="AI Investigation Workflow">
+    <div class="workflow-header">
+      <div class="workflow-heading">
+        <span class="eyebrow">AI INVESTIGATION</span>
+        <h2>Investigation workflow</h2>
+      </div>
+      <div class="workflow-modes" aria-label="Interpretation context">
+        <button type="button" id="networkAnalysisTab" class="workflow-mode active" aria-pressed="true">Network analysis</button>
+        <button type="button" id="nodeAnalysisTab" class="workflow-mode" aria-pressed="false">Node analysis</button>
+      </div>
+      <span id="workflowFreshness" class="workflow-freshness" aria-live="polite">Ready</span>
+    </div>
+    <div class="workflow-cards" role="group" aria-label="Five interpretation stages">
+      <button type="button" id="workflowObservation" class="workflow-card" disabled><span class="workflow-index">01</span><strong>Observation</strong><small id="workflowObservationSummary">What are we seeing?</small></button>
+      <button type="button" id="workflowMeaning" class="workflow-card" disabled><span class="workflow-index">02</span><strong>Business meaning</strong><small id="workflowMeaningSummary">Why does it matter?</small></button>
+      <button type="button" id="workflowEvidence" class="workflow-card" disabled><span class="workflow-index">03</span><strong>Evidence</strong><small id="workflowEvidenceSummary">Which facts support it?</small></button>
+      <button type="button" id="workflowInvestigation" class="workflow-card" disabled><span class="workflow-index">04</span><strong>Next investigation</strong><small id="workflowInvestigationSummary">What should we examine?</small></button>
+      <button type="button" id="workflowAction" class="workflow-card" disabled><span class="workflow-index">05</span><strong>Business action</strong><small id="workflowActionSummary">What decision is justified?</small></button>
+    </div>
+
+    <!-- Detailed full interpretation remains available as an optional view. -->
+    <details class="workflow-legacy-result" id="workflowFullResult">
+      <summary>Read full AI interpretation</summary>
+      <div id="aiViewPlan" class="ai-view-plan" hidden role="status" aria-live="polite"></div>
+      <div id="aiResult" class="ai-result" aria-live="off"></div>
+    </details>
+  </section>
+</main>
+
+<!-- The stage cards open this native dialog with contextual evidence and actions. -->
+<dialog id="aiDetailDialog" class="ai-detail-dialog" aria-labelledby="aiDetailTitle">
+  <div class="ai-dialog-head">
+    <h2 id="aiDetailTitle">AI interpretation</h2>
+    <button type="button" id="closeAiDetail" aria-label="Close interpretation">×</button>
+  </div>
+  <div id="aiDetailContent"></div>
+  <div id="aiDetailActions"></div>
+</dialog>
+
+<!-- In-app approval: no blocking browser alert/confirm. -->
+<dialog id="aiConfirmDialog" class="nas-modal nas-confirm-modal" aria-labelledby="aiConfirmTitle" aria-describedby="aiConfirmIntro">
+  <div class="nas-modal-topline"></div>
+  <div class="nas-modal-body">
+    <div class="nas-modal-kicker"><span class="nas-modal-symbol nas-modal-symbol-check" aria-hidden="true">✓</span><span>AI INVESTIGATION · YOUR APPROVAL REQUIRED</span></div>
+    <h2 id="aiConfirmTitle">Review suggested investigation</h2>
+    <p id="aiConfirmIntro" class="nas-modal-intro">The AI has suggested a change to the current graph view. Check the objective before applying it.</p>
+    <div class="nas-investigation-overview">
+      <div><span class="nas-overview-label">SUGGESTED ACTION</span><strong id="aiConfirmAction">—</strong></div>
+      <div><span class="nas-overview-label">TARGET</span><strong id="aiConfirmTarget">—</strong></div>
+    </div>
+    <div class="nas-reason-block"><span class="nas-overview-label">WHY INVESTIGATE?</span><p id="aiConfirmReason"></p></div>
+    <div class="nas-reason-block" id="aiConfirmLearningRow" hidden><span class="nas-overview-label">WHAT WE EXPECT TO LEARN</span><p id="aiConfirmLearning"></p></div>
+    <div class="nas-modal-disclaimer"><span aria-hidden="true">ⓘ</span><span>Only the graph view or selection will change. This is an investigative suggestion, not evidence of misconduct.</span></div>
+  </div>
+  <div class="nas-modal-footer">
+    <button type="button" id="aiConfirmCancel" class="nas-modal-button nas-modal-button-quiet">Keep current view</button>
+    <button type="button" id="aiConfirmApprove" class="nas-modal-button nas-modal-button-primary">Apply investigation <span aria-hidden="true">→</span></button>
+  </div>
+</dialog>
+
+<!-- Honest, indeterminate progress; never implies a percentage from Ollama. -->
+<dialog id="aiProgressDialog" class="nas-modal nas-progress-modal" aria-labelledby="aiProgressTitle" aria-describedby="aiProgressDescription">
+  <div class="nas-modal-topline"></div>
+  <div class="nas-modal-body">
+    <div class="nas-modal-kicker"><span class="nas-pulse-indicator" aria-hidden="true"></span><span>LOCAL AI · OLLAMA</span></div>
+    <h2 id="aiProgressTitle">Analysing network</h2>
+    <p id="aiProgressDescription" class="nas-modal-intro">Preparing a verified graph snapshot and requesting an interpretation from the local model.</p>
+    <div id="aiProgressActivity" class="nas-processing-card" role="status" aria-live="polite">
+      <div class="nas-progress-orbit" aria-hidden="true"><span>◎</span></div>
+      <div class="nas-processing-message"><strong id="aiProgressState">Analysis in progress</strong><span>The model may take a while to respond. No changes will be applied to your graph.</span></div>
+    </div>
+    <div id="aiProgressBar" class="nas-indeterminate-track" aria-hidden="true"><div></div></div>
+    <div class="nas-progress-context"><span id="aiProgressContext">Current graph</span><span id="aiProgressElapsed">0s elapsed</span></div>
+    <p class="nas-progress-disclaimer">The server calculates the network metrics before asking Ollama to interpret them. Progress is indeterminate; no percentage is estimated.</p>
+    <p id="aiProgressError" class="nas-progress-error" role="alert" hidden></p>
+  </div>
+  <div class="nas-modal-footer">
+    <button type="button" id="aiProgressCancel" class="nas-modal-button nas-modal-button-quiet">Cancel analysis</button>
+  </div>
+</dialog>
+
+<script type="module" src="{{ url_for('static', filename='js/controls.js') }}"></script>
+</body>
+</html>
